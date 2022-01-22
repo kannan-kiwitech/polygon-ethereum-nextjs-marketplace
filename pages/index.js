@@ -28,9 +28,13 @@ export default function Home() {
     const marketContract = new ethers.Contract(nftmarketaddress, Market.abi, provider)
     const data = await marketContract.fetchMarketItems()
     
+    console.log(JSON.stringify(data))
+
     const items = await Promise.all(data.map(async i => {
       const tokenUri = await tokenContract.tokenURI(i.tokenId)
       const meta = await axios.get(tokenUri)
+      console.log('------------------------')
+      console.log(JSON.stringify(meta))
       let price = ethers.utils.formatUnits(i.price.toString(), 'ether')
       let item = {
         price,
@@ -40,6 +44,7 @@ export default function Home() {
         image: meta.data.image,
         name: meta.data.name,
         description: meta.data.description,
+        properties: meta.data.properties
       }
       return item
     }))
@@ -79,6 +84,19 @@ export default function Home() {
                   <p className="text-2xl mb-4 font-bold text-white">{nft.price} ETH</p>
                   <button className="w-full bg-pink-500 text-white font-bold py-2 px-12 rounded" onClick={() => buyNft(nft)}>Buy</button>
                 </div>
+                  
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+                    {
+                    nft.properties.map((p, j) => (
+                      <div key={i} className="border shadow rounded-xl overflow-hidden">
+                        <div className="p-4 bg-black">
+                          <p className="text-2xl mb-4 font-bold text-white">{p.nKey} {p.nValue}</p>
+                        </div>
+                      </div>
+                    ))
+                    
+                  }
+                  </div>
               </div>
             ))
           }

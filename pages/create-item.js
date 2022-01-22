@@ -15,8 +15,33 @@ import Market from '../artifacts/contracts/Market.sol/NFTMarket.json'
 
 export default function CreateItem() {
   const [fileUrl, setFileUrl] = useState(null)
-  const [formInput, updateFormInput] = useState({ price: '', name: '', description: '' })
+  const [formInput, updateFormInput] = useState({ price: '', name: '', description: '', properties: [] })
   const router = useRouter()
+
+  const [propertyValues, setFormValues] = useState([{ nKey: "", nValue : ""}])
+
+  let handleChange = (i, e) => {
+    let newFormValues = [...propertyValues];
+    newFormValues[i][e.target.name] = e.target.value;
+    setFormValues(newFormValues);
+    updateFormInput({ ...formInput, properties: propertyValues })
+  }
+
+  let addFormFields = () => {
+      setFormValues([...propertyValues, { nKey: "", nValue: "" }])
+      console.log('adding')
+      console.log(JSON.stringify(propertyValues))
+      updateFormInput({ ...formInput, properties: propertyValues })
+      console.log(JSON.stringify(formInput))   
+  }
+
+  let removeFormFields = (i) => {
+      let newFormValues = [...propertyValues];
+      newFormValues.splice(i, 1);
+      setFormValues(newFormValues)
+  }
+
+
 
   async function onChange(e) {
     const file = e.target.files[0]
@@ -34,15 +59,21 @@ export default function CreateItem() {
     }  
   }
   async function createMarket() {
-    const { name, description, price } = formInput
+    const { name, description, price, properties } = formInput
+    alert('JSON.stringify(properties)');
+    alert(JSON.stringify(properties));
     if (!name || !description || !price || !fileUrl) return
     /* first, upload to IPFS */
     const data = JSON.stringify({
-      name, description, image: fileUrl
+      name, description, properties, image: fileUrl
     })
+
+    console.log(data)
+
     try {
       const added = await client.add(data)
       const url = `https://ipfs.infura.io/ipfs/${added.path}`
+      console.log(url)
       /* after file is uploaded to IPFS, pass the URL to save it on Polygon */
       createSale(url)
     } catch (error) {
@@ -51,14 +82,16 @@ export default function CreateItem() {
   }
 
   async function createSale(url) {
+    console.log('creating sale')
     const web3Modal = new Web3Modal()
     const connection = await web3Modal.connect()
     const provider = new ethers.providers.Web3Provider(connection)    
     const signer = provider.getSigner()
-    
+    console.log('signed')
     /* next, create the item */
     let contract = new ethers.Contract(nftaddress, NFT.abi, signer)
     let transaction = await contract.createToken(url)
+    console.log('token creation in progresss')
     let tx = await transaction.wait()
     let event = tx.events[0]
     let value = event.args[2]
@@ -72,6 +105,7 @@ export default function CreateItem() {
     listingPrice = listingPrice.toString()
 
     transaction = await contract.createMarketItem(nftaddress, tokenId, price, { value: listingPrice })
+    console.log('creating marketsale')
     await transaction.wait()
     router.push('/')
   }
@@ -94,6 +128,26 @@ export default function CreateItem() {
           className="mt-2 border rounded p-4"
           onChange={e => updateFormInput({ ...formInput, price: e.target.value })}
         />
+
+        {propertyValues.map((element, index) => (
+          <div className="mt-4 border rounded p-4" key={index}>
+            <label>Property Name</label>
+            <input type="text" name="nKey" className="mt-2 border rounded p-4" value={element.nKey || ""} onChange={e => handleChange(index, e)} />
+            <label>Property Value</label>
+            <input type="text" name="nValue" className="mt-2 border rounded p-4" value={element.nValue || ""} onChange={e => handleChange(index, e)} />
+            {
+              index ? 
+                <button type="button"  className="button remove" onClick={() => removeFormFields(index)}>Remove</button> 
+              : null
+            }
+          </div>
+        ))}
+        <div className="button-section">
+              <button className="button add" type="button" onClick={() => addFormFields()}>Add Property</button>
+        </div>
+
+
+
         <input
           type="file"
           name="Asset"
